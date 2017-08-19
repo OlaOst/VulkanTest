@@ -1,3 +1,4 @@
+import std.algorithm : all, any, each, map;
 import std.stdio : writeln;
 
 import erupted;
@@ -52,13 +53,41 @@ VkExtensionProperties[] getExtensions(VkInstance instance)
   return extensions;
 }
 
+VkLayerProperties[] getAvailableLayers(VkInstance instance)
+{
+  uint layerCount;
+  vkEnumerateInstanceLayerProperties(&layerCount, null).checkVk;
+  
+  VkLayerProperties[] availableLayers;
+  availableLayers.length = layerCount;
+  
+  vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.ptr).checkVk;
+  
+  return availableLayers;
+}
+
+bool checkValidationLayerSupport(VkInstance instance, string[] requestedValidationLayers)
+{
+  auto availableValidationLayers = instance.getAvailableLayers();
+  return requestedValidationLayers.all!(requestedValidationLayerName => availableValidationLayers.any!(availableValidationLayer => requestedValidationLayerName == availableValidationLayer.layerName));
+}
+
 void main()
 {
   auto instance = createVulkanInstance();
     
   writeln("Extensions:");
-  import std.algorithm;
   instance.getExtensions.map!(ext => ext.extensionName).each!writeln;
+
+  debug
+  {  
+    auto requestedValidationLayers = ["VK_LAYER_LUNARG_standard_validation"];
+
+    import std.exception : enforce;
+    import std.conv : to;
+    enforce(instance.checkValidationLayerSupport(requestedValidationLayers),
+            "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().to!string);
+  }
   
   vkDestroyInstance(instance, null);
 }
