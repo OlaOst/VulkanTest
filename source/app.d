@@ -11,7 +11,7 @@ private void checkVk(VkResult result)
   enforce(result == VK_SUCCESS, result.to!string);
 }
 
-VkInstance createVulkanInstance()
+VkInstance createVulkanInstance(string[] requestedValidationLayers)
 {
   DerelictErupted.load();
 
@@ -31,9 +31,21 @@ VkInstance createVulkanInstance()
     pApplicationInfo: &appInfo,
     
     //enabledExtensionCount: ?,
-    //ppEnableExtensionNames: ?,
-    enabledLayerCount: 0,
+    //ppEnableExtensionNames: ?,    
   };
+
+  debug
+  {
+    createInfo.enabledLayerCount = cast(uint)requestedValidationLayers.length;
+    import std.array : array;
+    import std.string : toStringz;
+    createInfo.ppEnabledLayerNames = requestedValidationLayers.map!(layer => layer.toStringz).array.ptr;
+  }
+  else
+  {
+    createInfo.enabledLayerCount = 0;
+  }
+
   
   VkInstance instance;
   vkCreateInstance(&createInfo, null, &instance).checkVk;
@@ -74,15 +86,16 @@ bool checkValidationLayerSupport(VkInstance instance, string[] requestedValidati
 
 void main()
 {
-  auto instance = createVulkanInstance();
+  //auto requestedValidationLayers = ["VK_LAYER_LUNARG_standard_validation"];
+  // TODO: no vulkan validation layers on my box yet, so let's not request any for now
+  string[] requestedValidationLayers = [];
+  auto instance = createVulkanInstance(requestedValidationLayers);
     
   writeln("Extensions:");
   instance.getExtensions.map!(ext => ext.extensionName).each!writeln;
 
   debug
-  {  
-    auto requestedValidationLayers = ["VK_LAYER_LUNARG_standard_validation"];
-
+  {
     import std.exception : enforce;
     import std.conv : to;
     enforce(instance.checkValidationLayerSupport(requestedValidationLayers),
