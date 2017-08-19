@@ -10,7 +10,7 @@ private void checkVk(VkResult result)
   enforce(result == VK_SUCCESS, result.to!string);
 }
 
-void main()
+VkInstance initVulkan()
 {
   DerelictErupted.load();
 
@@ -46,6 +46,13 @@ void main()
   
   import std.algorithm;
   extensions.map!(ext => ext.extensionName).each!writeln;
+  
+  return instance;
+}
 
+void main()
+{
+  auto instance = initVulkan();
+  
   vkDestroyInstance(instance, null);
 }
