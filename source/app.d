@@ -10,7 +10,7 @@ private void checkVk(VkResult result)
   enforce(result == VK_SUCCESS, result.to!string);
 }
 
-VkInstance initVulkan()
+VkInstance createVulkanInstance()
 {
   DerelictErupted.load();
 
@@ -36,7 +36,12 @@ VkInstance initVulkan()
   
   VkInstance instance;
   vkCreateInstance(&createInfo, null, &instance).checkVk;
-  
+
+  return instance;
+}
+
+VkExtensionProperties[] getExtensions(VkInstance instance)
+{  
   uint extensionCount;
   vkEnumerateInstanceExtensionProperties(null, &extensionCount, null).checkVk;
     
@@ -44,15 +49,16 @@ VkInstance initVulkan()
   extensions.length = extensionCount;
   vkEnumerateInstanceExtensionProperties(null, &extensionCount, extensions.ptr).checkVk;
   
-  import std.algorithm;
-  extensions.map!(ext => ext.extensionName).each!writeln;
-  
-  return instance;
+  return extensions;
 }
 
 void main()
 {
-  auto instance = initVulkan();
+  auto instance = createVulkanInstance();
+    
+  writeln("Extensions:");
+  import std.algorithm;
+  instance.getExtensions.map!(ext => ext.extensionName).each!writeln;
   
   vkDestroyInstance(instance, null);
 }
