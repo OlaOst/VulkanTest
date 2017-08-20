@@ -1,6 +1,7 @@
 import std.algorithm : all, any, each, map;
 import std.stdio : writeln;
 
+import derelict.sdl2.sdl;
 import erupted;
 
 
@@ -84,8 +85,35 @@ bool checkValidationLayerSupport(VkInstance instance, string[] requestedValidati
   return requestedValidationLayers.all!(requestedValidationLayerName => availableValidationLayers.any!(availableValidationLayer => requestedValidationLayerName == availableValidationLayer.layerName));
 }
 
+SDL_Window* createSDLWindow()
+{
+  DerelictSDL2.load(SharedLibVersion(2, 0, 4));
+  
+  import std.conv : to;
+  import std.exception : enforce;
+  enforce(SDL_Init(SDL_INIT_VIDEO) == 0, "Failed to initialize SDL: " ~ SDL_GetError().to!string);
+  
+  auto window = SDL_CreateWindow("VulkanTest",
+                                 SDL_WINDOWPOS_CENTERED,
+                                 SDL_WINDOWPOS_CENTERED,
+                                 800,
+                                 600,
+                                 SDL_WINDOW_SHOWN);
+
+  enforce(window !is null, "Error creating window: " ~ SDL_GetError().to!string);
+  
+  SDL_SysWMinfo info;
+  //SDL_VERSION(&info.version_); // compiled version
+  SDL_GetVersion(&info.version_); // linked version
+  enforce(SDL_GetWindowWMInfo(window, &info) != SDL_FALSE, "Failed to get window info from SDL: " ~ SDL_GetError().to!string);  
+  
+  return window;
+}
+
 void main()
 {
+  auto window = createSDLWindow();
+  
   //auto requestedValidationLayers = ["VK_LAYER_LUNARG_standard_validation"];
   // TODO: no vulkan validation layers on my box yet, so let's not request any for now
   string[] requestedValidationLayers = [];

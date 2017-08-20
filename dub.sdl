@@ -1,6 +1,7 @@
-name "vulkan"
+name "vulkantest"
 description "A minimal D application."
 copyright "Copyright © 2017, ubuntu"
 authors "ubuntu"
+dependency "derelict-sdl2" version="3.0.0-beta.4"
 dependency "erupted" version="1.6.5"
 subConfiguration "erupted" "with-derelict-loader"
