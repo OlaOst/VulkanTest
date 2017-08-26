@@ -211,6 +211,8 @@ VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, string[] requested
     
   VkDevice device;
   physicalDevice.vkCreateDevice(&deviceCreateInfo, null, &device).checkVk;
+  
+  device.loadDeviceLevelFunctions();
     
   return device;
 }
