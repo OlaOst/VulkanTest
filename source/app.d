@@ -55,7 +55,7 @@ VkInstance createVulkanInstance(string[] requestedValidationLayers)
   return instance;
 }
 
-VkExtensionProperties[] getExtensions(VkInstance instance)
+VkExtensionProperties[] getAvailableExtensions(VkInstance instance)
 {  
   uint extensionCount;
   vkEnumerateInstanceExtensionProperties(null, &extensionCount, null).checkVk;
@@ -120,8 +120,11 @@ void main()
   //string[] requestedValidationLayers = [];
   auto instance = createVulkanInstance(requestedValidationLayers);
     
-  writeln("Extensions:");
-  instance.getExtensions.map!(ext => ext.extensionName).each!writeln;
+  writeln("Available extensions:");
+  instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
+
+  writeln("\nAvailable layers:");
+  instance.getAvailableLayers.map!(layer => layer.layerName).each!writeln;
 
   debug
   {
