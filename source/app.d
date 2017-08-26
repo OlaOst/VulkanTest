@@ -1,4 +1,4 @@
-import std.algorithm : all, any, each, find, map;
+import std.algorithm : all, any, countUntil, each, filter, find, map;
 import std.array : array;
 import std.conv : to;
 import std.exception : enforce;
@@ -154,9 +154,64 @@ bool isDeviceSuitable(VkPhysicalDevice device)
       
   VkPhysicalDeviceFeatures deviceFeatures;
   device.vkGetPhysicalDeviceFeatures(&deviceFeatures);
+  
+  auto queueFamilyIndex = device.getQueueFamilyIndex();
+  
+  return queueFamilyIndex >= 0;
+}
 
-  return //deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && 
-         deviceFeatures.geometryShader != 0;
+uint getQueueFamilyIndex(VkPhysicalDevice device)
+{
+  uint queueFamilyCount;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, null);
+  
+  VkQueueFamilyProperties[] queueFamilies;
+  queueFamilies.length = queueFamilyCount;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.ptr);
+  
+  //auto queueFamiliesWithGraphics = queueFamilies.filter!(queueFamily => queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+  //enforce(!queueFamiliesWithGraphics.empty, "Could not find any queue family with graphics bit enabled");  
+  //return queueFamiliesWithGraphics.array;
+  
+  auto queueFamilyIndex = queueFamilies.countUntil!(queueFamily => queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+  enforce(queueFamilyIndex != -1);
+  return cast(uint)queueFamilyIndex;
+}
+
+VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, string[] requestedValidationLayers)
+{
+  auto queueFamilyIndex = physicalDevice.getQueueFamilyIndex();
+  auto queuePriority = 1.0f;
+  VkDeviceQueueCreateInfo queueCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+    queueFamilyIndex: queueFamilyIndex,
+    queueCount: 1,
+    pQueuePriorities: &queuePriority,
+  };
+  
+  VkPhysicalDeviceFeatures deviceFeatures =
+  {
+    // no features wanted yet
+  };
+  
+  VkDeviceCreateInfo deviceCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+    pQueueCreateInfos: &queueCreateInfo,
+    queueCreateInfoCount: 1,
+    pEnabledFeatures: &deviceFeatures,
+    
+    enabledExtensionCount: 0,
+    
+    enabledLayerCount: cast(uint)requestedValidationLayers.length,
+    ppEnabledLayerNames: requestedValidationLayers.map!(layer => layer.toStringz).array.ptr,
+  };
+  
+  VkDevice device;
+  physicalDevice.vkCreateDevice(&deviceCreateInfo, null, &device).checkVk;
+  
+  return device;
 }
 
 void main()
@@ -172,13 +227,15 @@ void main()
   auto instance = createVulkanInstance(requestedExtensions, requestedValidationLayers);
   auto debugCallback = instance.createDebugCallback();
       
-  auto device = instance.selectPhysicalDevice();
-        
-  writeln("Available extensions:");
-  instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
+  auto physicalDevice = instance.selectPhysicalDevice();
+  
+  auto logicalDevice = physicalDevice.createLogicalDevice(requestedValidationLayers);
+  
+  //writeln("Available extensions:");
+  //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
 
-  writeln("\nAvailable layers:");
-  instance.getAvailableLayers.map!(layer => layer.layerName).each!writeln;
+  //writeln("\nAvailable layers:");
+  //instance.getAvailableLayers.map!(layer => layer.layerName).each!writeln;
 
   debug
   {    
@@ -186,6 +243,7 @@ void main()
             "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
   }
   
+  logicalDevice.vkDestroyDevice(null);
   instance.vkDestroyDebugReportCallbackEXT(debugCallback, null);
   vkDestroyInstance(instance, null);
 }
