@@ -43,6 +43,8 @@ VkInstance createVulkanInstance(string[] requestedExtensions, string[] requested
   VkInstance instance;
   vkCreateInstance(&createInfo, null, &instance).checkVk;
 
+  instance.loadInstanceLevelFunctions();
+
   return instance;
 }
 
@@ -111,7 +113,7 @@ void main()
   debug requestedValidationLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
     
   auto instance = createVulkanInstance(requestedExtensions, requestedValidationLayers);
-    
+      
   writeln("Available extensions:");
   instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
 
@@ -124,5 +126,5 @@ void main()
             "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
   }
   
-  //vkDestroyInstance(instance, null);
+  vkDestroyInstance(instance, null);
 }
