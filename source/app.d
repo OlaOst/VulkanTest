@@ -1,4 +1,4 @@
-import std.algorithm : all, any, each, map;
+import std.algorithm : all, any, each, find, map;
 import std.array : array;
 import std.conv : to;
 import std.exception : enforce;
@@ -131,6 +131,34 @@ VkDebugReportCallbackEXT createDebugCallback(VkInstance instance)
   return callback;
 }
 
+VkPhysicalDevice selectPhysicalDevice(VkInstance instance)
+{ 
+  uint deviceCount;
+  instance.vkEnumeratePhysicalDevices(&deviceCount, null).checkVk;
+  
+  enforce(deviceCount > 0, "Could not find any physical devices");
+  
+  VkPhysicalDevice[] devices;
+  devices.length = deviceCount;
+  instance.vkEnumeratePhysicalDevices(&deviceCount, devices.ptr);
+
+  auto findSuitableDevice = devices.find!(device => device.isDeviceSuitable);
+  enforce(findSuitableDevice.length > 0, "Could not find any suitable physical device");
+  return findSuitableDevice[0];
+}
+
+bool isDeviceSuitable(VkPhysicalDevice device)
+{
+  VkPhysicalDeviceProperties deviceProperties;
+  device.vkGetPhysicalDeviceProperties(&deviceProperties);
+      
+  VkPhysicalDeviceFeatures deviceFeatures;
+  device.vkGetPhysicalDeviceFeatures(&deviceFeatures);
+
+  return //deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && 
+         deviceFeatures.geometryShader != 0;
+}
+
 void main()
 {
   auto window = createSDLWindow();
@@ -142,9 +170,10 @@ void main()
   debug requestedValidationLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
     
   auto instance = createVulkanInstance(requestedExtensions, requestedValidationLayers);
-
   auto debugCallback = instance.createDebugCallback();
       
+  auto device = instance.selectPhysicalDevice();
+        
   writeln("Available extensions:");
   instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
 
