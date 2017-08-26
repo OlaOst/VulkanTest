@@ -114,9 +114,9 @@ void main()
 {
   auto window = createSDLWindow();
   
-  //auto requestedValidationLayers = ["VK_LAYER_LUNARG_standard_validation"];
+  auto requestedValidationLayers = ["VK_LAYER_LUNARG_standard_validation"];
   // TODO: no vulkan validation layers on my box yet, so let's not request any for now
-  string[] requestedValidationLayers = [];
+  //string[] requestedValidationLayers = [];
   auto instance = createVulkanInstance(requestedValidationLayers);
     
   writeln("Extensions:");
@@ -124,10 +124,12 @@ void main()
 
   debug
   {
-    import std.exception : enforce;
     import std.conv : to;
+    import std.exception : enforce;
+    import std.string : fromStringz;
+    
     enforce(instance.checkValidationLayerSupport(requestedValidationLayers),
-            "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().to!string);
+            "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
   }
   
   vkDestroyInstance(instance, null);
