@@ -34,19 +34,11 @@ VkInstance createVulkanInstance(string[] requestedValidationLayers)
     pApplicationInfo: &appInfo,
     
     //enabledExtensionCount: ?,
-    //ppEnableExtensionNames: ?,    
+    //ppEnableExtensionNames: ?,
+
+    enabledLayerCount: cast(uint)requestedValidationLayers.length,
+    ppEnabledLayerNames: requestedValidationLayers.map!(layer => layer.toStringz).array.ptr,
   };
-
-  debug
-  {
-    createInfo.enabledLayerCount = cast(uint)requestedValidationLayers.length;
-    createInfo.ppEnabledLayerNames = requestedValidationLayers.map!(layer => layer.toStringz).array.ptr;
-  }
-  else
-  {
-    createInfo.enabledLayerCount = 0;
-  }
-
   
   VkInstance instance;
   vkCreateInstance(&createInfo, null, &instance).checkVk;
@@ -112,7 +104,9 @@ void main()
 {
   auto window = createSDLWindow();
   
-  auto requestedValidationLayers = ["VK_LAYER_LUNARG_standard_validation"];
+  string[] requestedValidationLayers;
+  debug requestedValidationLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
+  
   auto instance = createVulkanInstance(requestedValidationLayers);
     
   writeln("Available extensions:");
