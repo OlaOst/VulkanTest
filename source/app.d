@@ -102,6 +102,33 @@ SDL_Window* createSDLWindow()
   return window;
 }
 
+void setupDebugCallback(VkInstance instance)
+{
+  PFN_vkDebugReportCallbackEXT debugCallback = (uint flags, 
+                                                VkDebugReportObjectTypeEXT objectType,
+                                                ulong object,
+                                                ulong location,
+                                                int messageCode,
+                                                const(char)* pLayerPrefix,
+                                                const(char)* pMessage,
+                                                void* pUserData)
+  {
+    import core.stdc.stdio;
+    printf("Validation layer: %s\n", pMessage);
+    return VK_FALSE;
+  };
+  
+  VkDebugReportCallbackCreateInfoEXT createInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
+    flags: (VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT),
+    pfnCallback: debugCallback,
+  };
+  
+  VkDebugReportCallbackEXT callback;
+  instance.vkCreateDebugReportCallbackEXT(&createInfo, null, &callback);
+}
+
 void main()
 {
   auto window = createSDLWindow();
@@ -113,6 +140,8 @@ void main()
   debug requestedValidationLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
     
   auto instance = createVulkanInstance(requestedExtensions, requestedValidationLayers);
+
+  instance.setupDebugCallback();
       
   writeln("Available extensions:");
   instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
