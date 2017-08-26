@@ -116,8 +116,6 @@ void main()
   auto window = createSDLWindow();
   
   auto requestedValidationLayers = ["VK_LAYER_LUNARG_standard_validation"];
-  // TODO: no vulkan validation layers on my box yet, so let's not request any for now
-  //string[] requestedValidationLayers = [];
   auto instance = createVulkanInstance(requestedValidationLayers);
     
   writeln("Available extensions:");
