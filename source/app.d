@@ -1,5 +1,6 @@
 import std.algorithm : all, any, each, map;
 import std.stdio : writeln;
+import std.string : fromStringz;
 
 import derelict.sdl2.sdl;
 import erupted;
@@ -82,7 +83,7 @@ VkLayerProperties[] getAvailableLayers(VkInstance instance)
 bool checkValidationLayerSupport(VkInstance instance, string[] requestedValidationLayers)
 {
   auto availableValidationLayers = instance.getAvailableLayers();
-  return requestedValidationLayers.all!(requestedValidationLayerName => availableValidationLayers.any!(availableValidationLayer => requestedValidationLayerName == availableValidationLayer.layerName));
+  return requestedValidationLayers.all!(requestedValidationLayerName => availableValidationLayers.any!(availableValidationLayer => requestedValidationLayerName == availableValidationLayer.layerName.ptr.fromStringz));
 }
 
 SDL_Window* createSDLWindow()
@@ -126,11 +127,10 @@ void main()
   {
     import std.conv : to;
     import std.exception : enforce;
-    import std.string : fromStringz;
     
     enforce(instance.checkValidationLayerSupport(requestedValidationLayers),
             "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
   }
   
-  vkDestroyInstance(instance, null);
+  //vkDestroyInstance(instance, null);
 }
