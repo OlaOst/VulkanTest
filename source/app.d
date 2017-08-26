@@ -102,7 +102,7 @@ SDL_Window* createSDLWindow()
   return window;
 }
 
-void setupDebugCallback(VkInstance instance)
+VkDebugReportCallbackEXT createDebugCallback(VkInstance instance)
 {
   PFN_vkDebugReportCallbackEXT debugCallback = (uint flags, 
                                                 VkDebugReportObjectTypeEXT objectType,
@@ -126,7 +126,9 @@ void setupDebugCallback(VkInstance instance)
   };
   
   VkDebugReportCallbackEXT callback;
-  instance.vkCreateDebugReportCallbackEXT(&createInfo, null, &callback);
+  instance.vkCreateDebugReportCallbackEXT(&createInfo, null, &callback).checkVk;
+  
+  return callback;
 }
 
 void main()
@@ -141,7 +143,7 @@ void main()
     
   auto instance = createVulkanInstance(requestedExtensions, requestedValidationLayers);
 
-  instance.setupDebugCallback();
+  auto debugCallback = instance.createDebugCallback();
       
   writeln("Available extensions:");
   instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
@@ -155,5 +157,6 @@ void main()
             "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
   }
   
+  instance.vkDestroyDebugReportCallbackEXT(debugCallback, null);
   vkDestroyInstance(instance, null);
 }
