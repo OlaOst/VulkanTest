@@ -44,6 +44,7 @@ VkInstance createVulkanInstance(string[] requestedExtensions, string[] requested
   vkCreateInstance(&createInfo, null, &instance).checkVk;
 
   instance.loadInstanceLevelFunctions();
+  instance.loadDeviceLevelFunctions();
 
   return instance;
 }
@@ -189,7 +190,7 @@ VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, string[] requested
     queueCount: 1,
     pQueuePriorities: &queuePriority,
   };
-  
+    
   VkPhysicalDeviceFeatures deviceFeatures =
   {
     // no features wanted yet
@@ -207,11 +208,18 @@ VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, string[] requested
     enabledLayerCount: cast(uint)requestedValidationLayers.length,
     ppEnabledLayerNames: requestedValidationLayers.map!(layer => layer.toStringz).array.ptr,
   };
-  
+    
   VkDevice device;
   physicalDevice.vkCreateDevice(&deviceCreateInfo, null, &device).checkVk;
-  
+    
   return device;
+}
+
+VkQueue createGraphicsQueue(VkDevice logicalDevice, uint graphicsFamilyIndex)
+{
+  VkQueue graphicsQueue;
+  logicalDevice.vkGetDeviceQueue(graphicsFamilyIndex, 0, &graphicsQueue);
+  return graphicsQueue;
 }
 
 void main()
@@ -225,12 +233,19 @@ void main()
   debug requestedValidationLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
     
   auto instance = createVulkanInstance(requestedExtensions, requestedValidationLayers);
+  scope(exit) vkDestroyInstance(instance, null);
+
   auto debugCallback = instance.createDebugCallback();
-      
-  auto physicalDevice = instance.selectPhysicalDevice();
-  
+  scope(exit) instance.vkDestroyDebugReportCallbackEXT(debugCallback, null);
+    
+  auto physicalDevice = instance.selectPhysicalDevice();  
+    
   auto logicalDevice = physicalDevice.createLogicalDevice(requestedValidationLayers);
-  
+  scope(exit) logicalDevice.vkDestroyDevice(null);
+
+  auto queueFamilyIndex = physicalDevice.getQueueFamilyIndex();
+  auto queue = logicalDevice.createGraphicsQueue(queueFamilyIndex);
+    
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
 
@@ -241,9 +256,5 @@ void main()
   {    
     enforce(instance.checkValidationLayerSupport(requestedValidationLayers),
             "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
-  }
-  
-  logicalDevice.vkDestroyDevice(null);
-  instance.vkDestroyDebugReportCallbackEXT(debugCallback, null);
-  vkDestroyInstance(instance, null);
+  }  
 }
