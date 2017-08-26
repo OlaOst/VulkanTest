@@ -1,6 +1,9 @@
 import std.algorithm : all, any, each, map;
+import std.array : array;
+import std.conv : to;
+import std.exception : enforce;
 import std.stdio : writeln;
-import std.string : fromStringz;
+import std.string : fromStringz, toStringz;
 
 import derelict.sdl2.sdl;
 import erupted;
@@ -8,8 +11,6 @@ import erupted;
 
 private void checkVk(VkResult result)
 {
-  import std.conv : to;
-  import std.exception : enforce;
   enforce(result == VK_SUCCESS, result.to!string);
 }
 
@@ -39,8 +40,6 @@ VkInstance createVulkanInstance(string[] requestedValidationLayers)
   debug
   {
     createInfo.enabledLayerCount = cast(uint)requestedValidationLayers.length;
-    import std.array : array;
-    import std.string : toStringz;
     createInfo.ppEnabledLayerNames = requestedValidationLayers.map!(layer => layer.toStringz).array.ptr;
   }
   else
@@ -90,8 +89,6 @@ SDL_Window* createSDLWindow()
 {
   DerelictSDL2.load(SharedLibVersion(2, 0, 4));
   
-  import std.conv : to;
-  import std.exception : enforce;
   enforce(SDL_Init(SDL_INIT_VIDEO) == 0, "Failed to initialize SDL: " ~ SDL_GetError().to!string);
   
   auto window = SDL_CreateWindow("VulkanTest",
@@ -125,10 +122,7 @@ void main()
   instance.getAvailableLayers.map!(layer => layer.layerName).each!writeln;
 
   debug
-  {
-    import std.conv : to;
-    import std.exception : enforce;
-    
+  {    
     enforce(instance.checkValidationLayerSupport(requestedValidationLayers),
             "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
   }
