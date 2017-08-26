@@ -14,7 +14,7 @@ private void checkVk(VkResult result)
   enforce(result == VK_SUCCESS, result.to!string);
 }
 
-VkInstance createVulkanInstance(string[] requestedValidationLayers)
+VkInstance createVulkanInstance(string[] requestedExtensions, string[] requestedValidationLayers)
 {
   DerelictErupted.load();
 
@@ -33,8 +33,8 @@ VkInstance createVulkanInstance(string[] requestedValidationLayers)
     sType: VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     pApplicationInfo: &appInfo,
     
-    //enabledExtensionCount: ?,
-    //ppEnableExtensionNames: ?,
+    enabledExtensionCount: cast(uint)requestedExtensions.length,
+    ppEnabledExtensionNames: requestedExtensions.map!(extension => extension.toStringz).array.ptr,
 
     enabledLayerCount: cast(uint)requestedValidationLayers.length,
     ppEnabledLayerNames: requestedValidationLayers.map!(layer => layer.toStringz).array.ptr,
@@ -103,11 +103,14 @@ SDL_Window* createSDLWindow()
 void main()
 {
   auto window = createSDLWindow();
-  
+
+  string[] requestedExtensions;  
+  debug requestedExtensions ~= ["VK_EXT_debug_report"];
+
   string[] requestedValidationLayers;
   debug requestedValidationLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
-  
-  auto instance = createVulkanInstance(requestedValidationLayers);
+    
+  auto instance = createVulkanInstance(requestedExtensions, requestedValidationLayers);
     
   writeln("Available extensions:");
   instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
