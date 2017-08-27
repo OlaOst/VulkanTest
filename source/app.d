@@ -94,12 +94,7 @@ SDL_Window* createSDLWindow()
                                  SDL_WINDOW_SHOWN);
 
   enforce(window !is null, "Error creating window: " ~ SDL_GetError().to!string);
-  
-  SDL_SysWMinfo info;
-  //SDL_VERSION(&info.version_); // compiled version
-  SDL_GetVersion(&info.version_); // linked version
-  enforce(SDL_GetWindowWMInfo(window, &info) != SDL_FALSE, "Failed to get window info from SDL: " ~ SDL_GetError().to!string);  
-  
+    
   return window;
 }
 
@@ -224,11 +219,38 @@ VkQueue createGraphicsQueue(VkDevice logicalDevice, uint graphicsFamilyIndex)
   return graphicsQueue;
 }
 
+VkSurfaceKHR createSurface(VkInstance instance, SDL_Window* window)
+{
+  SDL_SysWMinfo wminfo;
+  //SDL_VERSION(&wminfo.version_); // compiled version
+  SDL_GetVersion(&wminfo.version_); // linked version
+  enforce(SDL_GetWindowWMInfo(window, &wminfo) != SDL_FALSE, "Failed to get window info from SDL: " ~ SDL_GetError().to!string);
+
+  VkSurfaceKHR surface;
+
+  version(linux)
+  {
+    VkXcbSurfaceCreateInfoKHR surfaceCreateInfo =
+    {
+      sType: VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+      connection: xcb_connect(null, null),
+      window: wminfo.info.x11.window,
+    };
+    
+    instance.vkCreateXcbSurfaceKHR(&surfaceCreateInfo, null, &surface).checkVk;
+  }
+  else
+  {
+    assert(0, "This platform is not supported yet");
+  }
+  
+  return surface;
+}
+
 void main()
 {
-  auto window = createSDLWindow();
-
-  string[] requestedExtensions;  
+  string[] requestedExtensions = ["VK_KHR_surface"];
+  version(linux) requestedExtensions ~= ["VK_KHR_xcb_surface"];
   debug requestedExtensions ~= ["VK_EXT_debug_report"];
 
   string[] requestedValidationLayers;
@@ -239,7 +261,9 @@ void main()
 
   auto debugCallback = instance.createDebugCallback();
   scope(exit) instance.vkDestroyDebugReportCallbackEXT(debugCallback, null);
-    
+
+  auto window = createSDLWindow();
+
   auto physicalDevice = instance.selectPhysicalDevice();  
     
   auto logicalDevice = physicalDevice.createLogicalDevice(requestedValidationLayers);
@@ -247,6 +271,9 @@ void main()
 
   auto queueFamilyIndex = physicalDevice.getQueueFamilyIndex();
   auto queue = logicalDevice.createGraphicsQueue(queueFamilyIndex);
+  
+  auto surface = instance.createSurface(window);
+  scope(exit) instance.vkDestroySurfaceKHR(surface, null);
     
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
