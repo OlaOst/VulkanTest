@@ -128,7 +128,7 @@ VkDebugReportCallbackEXT createDebugCallback(VkInstance instance)
   return callback;
 }
 
-VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface)
+VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, string[] requestedDeviceExtensions)
 { 
   uint deviceCount;
   instance.vkEnumeratePhysicalDevices(&deviceCount, null).checkVk;
@@ -139,22 +139,34 @@ VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface)
   devices.length = deviceCount;
   instance.vkEnumeratePhysicalDevices(&deviceCount, devices.ptr);
 
-  auto findSuitableDevice = devices.find!(device => device.isDeviceSuitable(surface));
+  auto findSuitableDevice = devices.find!(device => device.isDeviceSuitable(surface, requestedDeviceExtensions));
   enforce(findSuitableDevice.length > 0, "Could not find any suitable physical device");
   return findSuitableDevice[0];
 }
 
-bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
+bool isDeviceSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, string[] requestedDeviceExtensions)
 {
   VkPhysicalDeviceProperties deviceProperties;
-  device.vkGetPhysicalDeviceProperties(&deviceProperties);
+  physicalDevice.vkGetPhysicalDeviceProperties(&deviceProperties);
       
   VkPhysicalDeviceFeatures deviceFeatures;
-  device.vkGetPhysicalDeviceFeatures(&deviceFeatures);
+  physicalDevice.vkGetPhysicalDeviceFeatures(&deviceFeatures);
   
-  auto queueFamilyIndices = device.getQueueFamilyIndices(surface);
+  auto queueFamilyIndices = physicalDevice.getQueueFamilyIndices(surface);
   
-  return queueFamilyIndices.isComplete();
+  return queueFamilyIndices.isComplete() && physicalDevice.checkDeviceExtensionSupport(requestedDeviceExtensions);
+}
+
+bool checkDeviceExtensionSupport(VkPhysicalDevice physicalDevice, string[] requestedExtensions)
+{
+  uint extensionCount;
+  physicalDevice.vkEnumerateDeviceExtensionProperties(null, &extensionCount, null).checkVk;
+  
+  VkExtensionProperties[] availableExtensions;
+  availableExtensions.length = extensionCount;
+  physicalDevice.vkEnumerateDeviceExtensionProperties(null, &extensionCount, availableExtensions.ptr);
+    
+  return requestedExtensions.all!(requestedExtensionName => availableExtensions.any!(availableExtension => requestedExtensionName == availableExtension.extensionName.ptr.fromStringz));  
 }
 
 struct QueueFamilyIndices
@@ -193,7 +205,7 @@ QueueFamilyIndices getQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurf
   return queueFamilyIndices;
 }
 
-VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, QueueFamilyIndices queueFamilyIndices, string[] requestedValidationLayers)
+VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, QueueFamilyIndices queueFamilyIndices, string[] requestedExtensionNames, string[] requestedValidationLayers)
 {
   auto queuePriority = 1.0f;
   VkDeviceQueueCreateInfo drawingQueueCreateInfo =
@@ -224,21 +236,22 @@ VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, QueueFamilyIndices
     // no features wanted yet
   };
   
-  VkDeviceCreateInfo deviceCreateInfo =
+  VkDeviceCreateInfo logicalDeviceCreateInfo =
   {
     sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
     pQueueCreateInfos: queueCreateInfos.ptr,
     queueCreateInfoCount: cast(uint)queueCreateInfos.length,
     pEnabledFeatures: &deviceFeatures,
     
-    enabledExtensionCount: 0,
+    enabledExtensionCount: cast(uint)requestedExtensionNames.length,
+    ppEnabledExtensionNames: requestedExtensionNames.map!(extension => extension.toStringz).array.ptr,
     
     enabledLayerCount: cast(uint)requestedValidationLayers.length,
     ppEnabledLayerNames: requestedValidationLayers.map!(layer => layer.toStringz).array.ptr,
   };
     
   VkDevice logicalDevice;
-  physicalDevice.vkCreateDevice(&deviceCreateInfo, null, &logicalDevice).checkVk;
+  physicalDevice.vkCreateDevice(&logicalDeviceCreateInfo, null, &logicalDevice).checkVk;
   
   logicalDevice.loadDeviceLevelFunctions();
       
@@ -307,11 +320,13 @@ void main()
   auto surface = instance.createSurface(window);
   scope(exit) instance.vkDestroySurfaceKHR(surface, null);
 
-  auto physicalDevice = instance.selectPhysicalDevice(surface);
+  auto requestedDeviceExtensions = ["VK_KHR_swapchain"];
+
+  auto physicalDevice = instance.selectPhysicalDevice(surface, requestedDeviceExtensions);
 
   auto queueFamilyIndices = physicalDevice.getQueueFamilyIndices(surface);
     
-  auto logicalDevice = physicalDevice.createLogicalDevice(queueFamilyIndices, requestedValidationLayers);
+  auto logicalDevice = physicalDevice.createLogicalDevice(queueFamilyIndices, requestedDeviceExtensions, requestedValidationLayers);
   scope(exit) logicalDevice.vkDestroyDevice(null);
 
   auto drawingQueue = logicalDevice.createDrawingQueue(queueFamilyIndices);
