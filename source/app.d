@@ -511,15 +511,52 @@ VkImageView[] createImageViews(VkDevice logicalDevice, Swapchain swapchain)
   return swapchainImageViews;
 }
 
-void createGraphicsPipeline()
+void createGraphicsPipeline(VkDevice logicalDevice)
 {
   import std.file : read;
   
   auto vertShaderCode = "shaders/vert.spv".read;
   auto fragShaderCode = "shaders/frag.spv".read;
+    
+  auto vertShaderModule = logicalDevice.createShaderModule(vertShaderCode);
+  scope(exit) logicalDevice.vkDestroyShaderModule(vertShaderModule, null);
   
-  writeln("read ", vertShaderCode.length, " bytes from vert code");
-  writeln("read ", fragShaderCode.length, " bytes from frag code");
+  auto fragShaderModule = logicalDevice.createShaderModule(fragShaderCode);
+  scope(exit) logicalDevice.vkDestroyShaderModule(fragShaderModule, null);
+  
+  VkPipelineShaderStageCreateInfo vertShaderStageCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    stage: VK_SHADER_STAGE_VERTEX_BIT,
+    _module: vertShaderModule,
+    pName: "main",
+  };
+  
+  VkPipelineShaderStageCreateInfo fragShaderStageCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    stage: VK_SHADER_STAGE_FRAGMENT_BIT,
+    _module: fragShaderModule,
+    pName: "main",
+  };
+  
+  auto shaderStages = [vertShaderStageCreateInfo, fragShaderStageCreateInfo];
+  
+}
+
+VkShaderModule createShaderModule(VkDevice logicalDevice, void[] shaderCode)
+{
+  VkShaderModuleCreateInfo shaderModuleCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+    codeSize: shaderCode.length,
+    pCode: cast(uint*)(shaderCode.ptr),
+  };
+  
+  VkShaderModule shaderModule;
+  logicalDevice.vkCreateShaderModule(&shaderModuleCreateInfo, null, &shaderModule).checkVk;
+  
+  return shaderModule;
 }
 
 void main()
@@ -560,7 +597,7 @@ void main()
   auto imageViews = logicalDevice.createImageViews(swapchain);
   scope(exit) imageViews.each!(imageView => logicalDevice.vkDestroyImageView(imageView, null));
   
-  createGraphicsPipeline();
+  logicalDevice.createGraphicsPipeline();
   
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
