@@ -406,7 +406,16 @@ VkExtent2D chooseSwapExtent(VkSurfaceCapabilitiesKHR capabilities)
   }
 }
 
-VkSwapchainKHR createSwapchain(VkDevice logicalDevice, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, QueueFamilyIndices queueFamilyIndices)
+struct Swapchain
+{
+  VkSwapchainKHR vkSwapchain;
+  alias vkSwapchain this;
+  
+  VkFormat surfaceFormat;
+  VkExtent2D extent;
+}
+
+Swapchain createSwapchain(VkDevice logicalDevice, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, QueueFamilyIndices queueFamilyIndices)
 {
   auto swapchainSupport = physicalDevice.querySwapchainSupport(surface);
   
@@ -452,8 +461,11 @@ VkSwapchainKHR createSwapchain(VkDevice logicalDevice, VkPhysicalDevice physical
     swapchainCreateInfo.pQueueFamilyIndices = null;
   }
   
-  VkSwapchainKHR swapchain;
-  logicalDevice.vkCreateSwapchainKHR(&swapchainCreateInfo, null, &swapchain).checkVk;
+  Swapchain swapchain;
+  logicalDevice.vkCreateSwapchainKHR(&swapchainCreateInfo, null, &swapchain.vkSwapchain).checkVk;
+  
+  swapchain.surfaceFormat = surfaceFormat.format;
+  swapchain.extent = extent;
     
   return swapchain;
 }
@@ -468,6 +480,35 @@ VkImage[] getSwapchainImages(VkDevice logicalDevice, VkSwapchainKHR swapchain)
   logicalDevice.vkGetSwapchainImagesKHR(swapchain, &imageCount, swapchainImages.ptr);
 
   return swapchainImages;
+}
+
+VkImageView[] createImageViews(VkDevice logicalDevice, Swapchain swapchain)
+{
+  auto swapchainImages = logicalDevice.getSwapchainImages(swapchain);
+  
+  VkImageView[] swapchainImageViews;
+  swapchainImageViews.length = swapchainImages.length;
+    
+  foreach (index, swapchainImage; swapchainImages)
+  {
+    VkImageViewCreateInfo imageViewCreateInfo =
+    {
+      sType: VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      image: swapchainImage,
+      viewType: VK_IMAGE_VIEW_TYPE_2D,
+      format: swapchain.surfaceFormat,
+      components: VkComponentMapping(VK_COMPONENT_SWIZZLE_IDENTITY,
+                                     VK_COMPONENT_SWIZZLE_IDENTITY,
+                                     VK_COMPONENT_SWIZZLE_IDENTITY,
+                                     VK_COMPONENT_SWIZZLE_IDENTITY),
+      subresourceRange: VkImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT,
+                                                0, 1, 0, 1),
+    };
+    
+    logicalDevice.vkCreateImageView(&imageViewCreateInfo, null, &swapchainImageViews[index]).checkVk;
+  }
+  
+  return swapchainImageViews;
 }
 
 void main()
@@ -504,8 +545,9 @@ void main()
   
   auto swapchain = logicalDevice.createSwapchain(physicalDevice, surface, queueFamilyIndices);
   scope(exit) logicalDevice.vkDestroySwapchainKHR(swapchain, null);
-
-  auto images = logicalDevice.getSwapchainImages(swapchain);
+  
+  auto imageViews = logicalDevice.createImageViews(swapchain);
+  scope(exit) imageViews.each!(imageView => logicalDevice.vkDestroyImageView(imageView, null));
   
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
