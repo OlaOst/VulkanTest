@@ -196,14 +196,29 @@ QueueFamilyIndices getQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurf
 VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, QueueFamilyIndices queueFamilyIndices, string[] requestedValidationLayers)
 {
   auto queuePriority = 1.0f;
-  VkDeviceQueueCreateInfo queueCreateInfo =
+  VkDeviceQueueCreateInfo drawingQueueCreateInfo =
   {
     sType: VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
     queueFamilyIndex: queueFamilyIndices.drawingFamilyIndex,
     queueCount: 1,
     pQueuePriorities: &queuePriority,
   };
+  
+  auto queueCreateInfos = [drawingQueueCreateInfo];
+  
+  if (queueFamilyIndices.drawingFamilyIndex != queueFamilyIndices.presentationFamilyIndex)
+  {
+    VkDeviceQueueCreateInfo presentationQueueCreateInfo =
+    {
+      sType: VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      queueFamilyIndex: queueFamilyIndices.presentationFamilyIndex,
+      queueCount: 1,
+      pQueuePriorities: &queuePriority,
+    };
     
+    queueCreateInfos ~= presentationQueueCreateInfo;
+  }
+  
   VkPhysicalDeviceFeatures deviceFeatures =
   {
     // no features wanted yet
@@ -212,8 +227,8 @@ VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, QueueFamilyIndices
   VkDeviceCreateInfo deviceCreateInfo =
   {
     sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-    pQueueCreateInfos: &queueCreateInfo,
-    queueCreateInfoCount: 1,
+    pQueueCreateInfos: queueCreateInfos.ptr,
+    queueCreateInfoCount: cast(uint)queueCreateInfos.length,
     pEnabledFeatures: &deviceFeatures,
     
     enabledExtensionCount: 0,
@@ -222,12 +237,12 @@ VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, QueueFamilyIndices
     ppEnabledLayerNames: requestedValidationLayers.map!(layer => layer.toStringz).array.ptr,
   };
     
-  VkDevice device;
-  physicalDevice.vkCreateDevice(&deviceCreateInfo, null, &device).checkVk;
+  VkDevice logicalDevice;
+  physicalDevice.vkCreateDevice(&deviceCreateInfo, null, &logicalDevice).checkVk;
   
-  device.loadDeviceLevelFunctions();
-    
-  return device;
+  logicalDevice.loadDeviceLevelFunctions();
+      
+  return logicalDevice;
 }
 
 VkQueue createDrawingQueue(VkDevice logicalDevice, QueueFamilyIndices queueFamilyIndices)
@@ -235,6 +250,13 @@ VkQueue createDrawingQueue(VkDevice logicalDevice, QueueFamilyIndices queueFamil
   VkQueue graphicsQueue;
   logicalDevice.vkGetDeviceQueue(queueFamilyIndices.drawingFamilyIndex, 0, &graphicsQueue);
   return graphicsQueue;
+}
+
+VkQueue createPresentationQueue(VkDevice logicalDevice, QueueFamilyIndices queueFamilyIndices)
+{
+  VkQueue presentationQueue;
+  logicalDevice.vkGetDeviceQueue(queueFamilyIndices.presentationFamilyIndex, 0, &presentationQueue);
+  return presentationQueue;
 }
 
 VkSurfaceKHR createSurface(VkInstance instance, SDL_Window* window)
@@ -293,6 +315,7 @@ void main()
   scope(exit) logicalDevice.vkDestroyDevice(null);
 
   auto drawingQueue = logicalDevice.createDrawingQueue(queueFamilyIndices);
+  auto presentationQueue = logicalDevice.createPresentationQueue(queueFamilyIndices);
   
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
