@@ -300,6 +300,34 @@ VkSurfaceKHR createSurface(VkInstance instance, SDL_Window* window)
   return surface;
 }
 
+struct SwapChainSupportDetails
+{
+  VkSurfaceCapabilitiesKHR capabilities;
+  VkSurfaceFormatKHR[] formats;
+  VkPresentModeKHR[] presentModes;
+}
+
+SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
+{
+  SwapChainSupportDetails details;
+  
+  physicalDevice.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(surface, &details.capabilities).checkVk;
+  
+  uint formatCount;
+  physicalDevice.vkGetPhysicalDeviceSurfaceFormatsKHR(surface, &formatCount, null);
+  
+  details.formats.length = formatCount;
+  physicalDevice.vkGetPhysicalDeviceSurfaceFormatsKHR(surface, &formatCount, details.formats.ptr);
+  
+  uint presentModeCount;
+  physicalDevice.vkGetPhysicalDeviceSurfacePresentModesKHR(surface, &presentModeCount, null);
+  
+  details.presentModes.length = presentModeCount;
+  physicalDevice.vkGetPhysicalDeviceSurfacePresentModesKHR(surface, &presentModeCount, details.presentModes.ptr);
+  
+  return details;
+}
+
 void main()
 {
   string[] requestedExtensions = ["VK_KHR_surface"];
@@ -331,6 +359,8 @@ void main()
 
   auto drawingQueue = logicalDevice.createDrawingQueue(queueFamilyIndices);
   auto presentationQueue = logicalDevice.createPresentationQueue(queueFamilyIndices);
+  
+  physicalDevice.querySwapChainSupport(surface).writeln;
   
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
