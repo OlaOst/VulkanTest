@@ -230,7 +230,7 @@ VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, QueueFamilyIndices
   return device;
 }
 
-VkQueue createGraphicsQueue(VkDevice logicalDevice, QueueFamilyIndices queueFamilyIndices)
+VkQueue createDrawingQueue(VkDevice logicalDevice, QueueFamilyIndices queueFamilyIndices)
 {
   VkQueue graphicsQueue;
   logicalDevice.vkGetDeviceQueue(queueFamilyIndices.drawingFamilyIndex, 0, &graphicsQueue);
@@ -292,8 +292,8 @@ void main()
   auto logicalDevice = physicalDevice.createLogicalDevice(queueFamilyIndices, requestedValidationLayers);
   scope(exit) logicalDevice.vkDestroyDevice(null);
 
-  auto queue = logicalDevice.createGraphicsQueue(queueFamilyIndices);
-      
+  auto drawingQueue = logicalDevice.createDrawingQueue(queueFamilyIndices);
+  
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
 
