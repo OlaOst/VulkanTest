@@ -454,7 +454,20 @@ VkSwapchainKHR createSwapchain(VkDevice logicalDevice, VkPhysicalDevice physical
   
   VkSwapchainKHR swapchain;
   logicalDevice.vkCreateSwapchainKHR(&swapchainCreateInfo, null, &swapchain).checkVk;
+    
   return swapchain;
+}
+
+VkImage[] getSwapchainImages(VkDevice logicalDevice, VkSwapchainKHR swapchain)
+{  
+  uint imageCount;
+  logicalDevice.vkGetSwapchainImagesKHR(swapchain, &imageCount, null);
+  
+  VkImage[] swapchainImages;
+  swapchainImages.length = imageCount;
+  logicalDevice.vkGetSwapchainImagesKHR(swapchain, &imageCount, swapchainImages.ptr);
+
+  return swapchainImages;
 }
 
 void main()
@@ -491,6 +504,8 @@ void main()
   
   auto swapchain = logicalDevice.createSwapchain(physicalDevice, surface, queueFamilyIndices);
   scope(exit) logicalDevice.vkDestroySwapchainKHR(swapchain, null);
+
+  auto images = logicalDevice.getSwapchainImages(swapchain);
   
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
