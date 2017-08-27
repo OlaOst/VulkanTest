@@ -158,7 +158,7 @@ bool isDeviceSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, str
   {
     return queueFamilyIndices.isComplete() && 
            physicalDevice.checkDeviceExtensionSupport(requestedDeviceExtensions) && 
-           physicalDevice.querySwapChainSupport(surface).isAdequate;
+           physicalDevice.querySwapchainSupport(surface).isAdequate;
   }
   else
   {
@@ -310,7 +310,7 @@ VkSurfaceKHR createSurface(VkInstance instance, SDL_Window* window)
   return surface;
 }
 
-struct SwapChainSupportDetails
+struct SwapchainSupportDetails
 {
   VkSurfaceCapabilitiesKHR capabilities;
   VkSurfaceFormatKHR[] formats;
@@ -322,9 +322,9 @@ struct SwapChainSupportDetails
   }
 }
 
-SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
+SwapchainSupportDetails querySwapchainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
 {
-  SwapChainSupportDetails details;
+  SwapchainSupportDetails details;
   
   physicalDevice.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(surface, &details.capabilities).checkVk;
   
@@ -408,17 +408,17 @@ VkExtent2D chooseSwapExtent(VkSurfaceCapabilitiesKHR capabilities)
 
 VkSwapchainKHR createSwapchain(VkDevice logicalDevice, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, QueueFamilyIndices queueFamilyIndices)
 {
-  auto swapChainSupport = physicalDevice.querySwapChainSupport(surface);
+  auto swapchainSupport = physicalDevice.querySwapchainSupport(surface);
   
-  auto surfaceFormat = swapChainSupport.formats.chooseSwapSurfaceFormat();
-  auto presentMode = swapChainSupport.presentModes.chooseSwapPresentMode();
-  auto extent = swapChainSupport.capabilities.chooseSwapExtent;
+  auto surfaceFormat = swapchainSupport.formats.chooseSwapSurfaceFormat();
+  auto presentMode = swapchainSupport.presentModes.chooseSwapPresentMode();
+  auto extent = swapchainSupport.capabilities.chooseSwapExtent;
   
-  uint imageCount = swapChainSupport.capabilities.minImageCount + 1;
-  if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
-    imageCount = swapChainSupport.capabilities.maxImageCount;
+  uint imageCount = swapchainSupport.capabilities.minImageCount + 1;
+  if (swapchainSupport.capabilities.maxImageCount > 0 && imageCount > swapchainSupport.capabilities.maxImageCount)
+    imageCount = swapchainSupport.capabilities.maxImageCount;
     
-  VkSwapchainCreateInfoKHR swapChainCreateInfo =
+  VkSwapchainCreateInfoKHR swapchainCreateInfo =
   {
     sType: VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
     surface: surface,
@@ -429,7 +429,7 @@ VkSwapchainKHR createSwapchain(VkDevice logicalDevice, VkPhysicalDevice physical
     imageArrayLayers: 1,
     imageUsage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 
-    preTransform: swapChainSupport.capabilities.currentTransform,
+    preTransform: swapchainSupport.capabilities.currentTransform,
     compositeAlpha: VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
     presentMode: presentMode,
     clipped: VK_TRUE,
@@ -438,23 +438,23 @@ VkSwapchainKHR createSwapchain(VkDevice logicalDevice, VkPhysicalDevice physical
     
   if (queueFamilyIndices.drawingFamilyIndex != queueFamilyIndices.presentationFamilyIndex)
   {
-    swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-    swapChainCreateInfo.queueFamilyIndexCount = 2;
+    swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+    swapchainCreateInfo.queueFamilyIndexCount = 2;
     
     auto indices = [queueFamilyIndices.drawingFamilyIndex, queueFamilyIndices.presentationFamilyIndex];
 
-    swapChainCreateInfo.pQueueFamilyIndices = cast(const(uint)*)indices.ptr;
+    swapchainCreateInfo.pQueueFamilyIndices = cast(const(uint)*)indices.ptr;
   }
   else
   {
-    swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    swapChainCreateInfo.queueFamilyIndexCount = 0;
-    swapChainCreateInfo.pQueueFamilyIndices = null;
+    swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swapchainCreateInfo.queueFamilyIndexCount = 0;
+    swapchainCreateInfo.pQueueFamilyIndices = null;
   }
   
-  VkSwapchainKHR swapChain;
-  logicalDevice.vkCreateSwapchainKHR(&swapChainCreateInfo, null, &swapChain).checkVk;
-  return swapChain;
+  VkSwapchainKHR swapchain;
+  logicalDevice.vkCreateSwapchainKHR(&swapchainCreateInfo, null, &swapchain).checkVk;
+  return swapchain;
 }
 
 void main()
