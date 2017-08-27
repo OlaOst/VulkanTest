@@ -154,7 +154,17 @@ bool isDeviceSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, str
   
   auto queueFamilyIndices = physicalDevice.getQueueFamilyIndices(surface);
   
-  return queueFamilyIndices.isComplete() && physicalDevice.checkDeviceExtensionSupport(requestedDeviceExtensions);
+  if (requestedDeviceExtensions.length > 0)
+  {
+    return queueFamilyIndices.isComplete() && 
+           physicalDevice.checkDeviceExtensionSupport(requestedDeviceExtensions) && 
+           physicalDevice.querySwapChainSupport(surface).isAdequate;
+  }
+  else
+  {
+    return queueFamilyIndices.isComplete() && 
+           physicalDevice.checkDeviceExtensionSupport(requestedDeviceExtensions);
+  }
 }
 
 bool checkDeviceExtensionSupport(VkPhysicalDevice physicalDevice, string[] requestedExtensions)
@@ -305,6 +315,11 @@ struct SwapChainSupportDetails
   VkSurfaceCapabilitiesKHR capabilities;
   VkSurfaceFormatKHR[] formats;
   VkPresentModeKHR[] presentModes;
+  
+  bool isAdequate()
+  {
+    return formats.length > 0 && presentModes.length > 0;
+  }
 }
 
 SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
@@ -359,9 +374,7 @@ void main()
 
   auto drawingQueue = logicalDevice.createDrawingQueue(queueFamilyIndices);
   auto presentationQueue = logicalDevice.createPresentationQueue(queueFamilyIndices);
-  
-  physicalDevice.querySwapChainSupport(surface).writeln;
-  
+    
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
 
