@@ -667,6 +667,47 @@ VkShaderModule createShaderModule(VkDevice logicalDevice, void[] shaderCode)
   return shaderModule;
 }
 
+VkRenderPass createRenderPass(VkDevice logicalDevice, Swapchain swapchain)
+{
+  VkAttachmentDescription colorAttachment =
+  {
+    format: swapchain.surfaceFormat,
+    samples: VK_SAMPLE_COUNT_1_BIT,
+    loadOp: VK_ATTACHMENT_LOAD_OP_CLEAR,
+    storeOp: VK_ATTACHMENT_STORE_OP_STORE,
+    stencilLoadOp: VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    stencilStoreOp: VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    initialLayout: VK_IMAGE_LAYOUT_UNDEFINED,
+    finalLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+  };
+  
+  VkAttachmentReference colorAttachmentReference =
+  {
+    attachment: 0,
+    layout: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+  };
+  
+  VkSubpassDescription subpassDescription =
+  {
+    pipelineBindPoint: VK_PIPELINE_BIND_POINT_GRAPHICS,
+    colorAttachmentCount: 1,
+    pColorAttachments: &colorAttachmentReference,
+  };
+  
+  VkRenderPassCreateInfo renderPassCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    attachmentCount: 1,
+    pAttachments: &colorAttachment,
+    subpassCount: 1,
+    pSubpasses: &subpassDescription,
+  };
+  
+  VkRenderPass renderPass;
+  logicalDevice.vkCreateRenderPass(&renderPassCreateInfo, null, &renderPass).checkVk;
+  return renderPass;
+}
+
 void main()
 {
   string[] requestedExtensions = ["VK_KHR_surface"];
@@ -704,6 +745,9 @@ void main()
   
   auto imageViews = logicalDevice.createImageViews(swapchain);
   scope(exit) imageViews.each!(imageView => logicalDevice.vkDestroyImageView(imageView, null));
+
+  auto renderPass = logicalDevice.createRenderPass(swapchain);
+  scope(exit) logicalDevice.vkDestroyRenderPass(renderPass, null);
 
   VkPipelineLayout pipelineLayout;  
   logicalDevice.createGraphicsPipeline(swapchain, pipelineLayout);
