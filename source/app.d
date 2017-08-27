@@ -511,7 +511,7 @@ VkImageView[] createImageViews(VkDevice logicalDevice, Swapchain swapchain)
   return swapchainImageViews;
 }
 
-void createGraphicsPipeline(VkDevice logicalDevice, Swapchain swapchain, out VkPipelineLayout pipelineLayout)
+VkPipeline createGraphicsPipeline(VkDevice logicalDevice, Swapchain swapchain, VkRenderPass renderPass, out VkPipelineLayout pipelineLayout)
 {
   import std.file : read;
   
@@ -583,7 +583,7 @@ void createGraphicsPipeline(VkDevice logicalDevice, Swapchain swapchain, out VkP
     pScissors: &scissor,
   };
   
-  VkPipelineRasterizationStateCreateInfo raterizationStateCreateInfo =
+  VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo =
   {
     sType: VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
     depthClampEnable: VK_FALSE,
@@ -649,7 +649,31 @@ void createGraphicsPipeline(VkDevice logicalDevice, Swapchain swapchain, out VkP
     pPushConstantRanges: null,
   };
   
-  logicalDevice.vkCreatePipelineLayout(&pipelineLayoutCreateInfo, null, &pipelineLayout).checkVk;  
+  logicalDevice.vkCreatePipelineLayout(&pipelineLayoutCreateInfo, null, &pipelineLayout).checkVk;
+  
+  VkGraphicsPipelineCreateInfo pipelineCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    stageCount: 2,
+    pStages: shaderStages.ptr,
+    pVertexInputState: &vertexInputStateCreateInfo,
+    pInputAssemblyState: &inputAssemblyStateCreateInfo,
+    pViewportState: &viewportStateCreateInfo,
+    pRasterizationState: &rasterizationStateCreateInfo,
+    pMultisampleState: &multisampleStateCreateInfo,
+    pDepthStencilState: null,
+    pColorBlendState: &colorBlendStateCreateInfo,
+    pDynamicState: null,
+    layout: pipelineLayout,
+    renderPass: renderPass,
+    subpass: 0,
+    basePipelineHandle: VK_NULL_HANDLE,
+    basePipelineIndex: -1,
+  };
+  
+  VkPipeline graphicsPipeline;
+  logicalDevice.vkCreateGraphicsPipelines(VK_NULL_HANDLE, 1, &pipelineCreateInfo, null, &graphicsPipeline).checkVk;
+  return graphicsPipeline;
 }
 
 VkShaderModule createShaderModule(VkDevice logicalDevice, void[] shaderCode)
@@ -750,7 +774,8 @@ void main()
   scope(exit) logicalDevice.vkDestroyRenderPass(renderPass, null);
 
   VkPipelineLayout pipelineLayout;  
-  logicalDevice.createGraphicsPipeline(swapchain, pipelineLayout);
+  auto graphicsPipeline = logicalDevice.createGraphicsPipeline(swapchain, renderPass, pipelineLayout);
+  scope(exit) logicalDevice.vkDestroyPipeline(graphicsPipeline, null);
   scope(exit) logicalDevice.vkDestroyPipelineLayout(pipelineLayout, null);
   
   //writeln("Available extensions:");
