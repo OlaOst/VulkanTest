@@ -511,6 +511,17 @@ VkImageView[] createImageViews(VkDevice logicalDevice, Swapchain swapchain)
   return swapchainImageViews;
 }
 
+void createGraphicsPipeline()
+{
+  import std.file : read;
+  
+  auto vertShaderCode = "shaders/vert.spv".read;
+  auto fragShaderCode = "shaders/frag.spv".read;
+  
+  writeln("read ", vertShaderCode.length, " bytes from vert code");
+  writeln("read ", fragShaderCode.length, " bytes from frag code");
+}
+
 void main()
 {
   string[] requestedExtensions = ["VK_KHR_surface"];
@@ -548,6 +559,8 @@ void main()
   
   auto imageViews = logicalDevice.createImageViews(swapchain);
   scope(exit) imageViews.each!(imageView => logicalDevice.vkDestroyImageView(imageView, null));
+  
+  createGraphicsPipeline();
   
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
