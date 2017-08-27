@@ -1,4 +1,4 @@
-import std.algorithm : all, any, countUntil, each, filter, find, map;
+import std.algorithm : all, any, canFind, clamp, countUntil, each, filter, find, map;
 import std.array : array;
 import std.conv : to;
 import std.exception : enforce;
@@ -343,6 +343,120 @@ SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physicalDevice, V
   return details;
 }
 
+VkSurfaceFormatKHR chooseSwapSurfaceFormat(VkSurfaceFormatKHR[] availableFormats)
+{
+  if (availableFormats.length == 1 && availableFormats[0].format == VK_FORMAT_UNDEFINED)
+  {
+    return VkSurfaceFormatKHR(VK_FORMAT_B8G8R8A8_UNORM, 
+                              VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
+  }
+  else
+  {
+    auto wantedFormatSearch = availableFormats.find!(availableFormat => availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
+    
+    if (wantedFormatSearch.length == 0)
+    {
+      return availableFormats[0];
+    }
+    else
+    {
+      return wantedFormatSearch[0];
+    }
+  }
+}
+
+VkPresentModeKHR chooseSwapPresentMode(VkPresentModeKHR[] availablePresentModes)
+{
+  auto desiredPresentModes = [VK_PRESENT_MODE_MAILBOX_KHR,
+                              VK_PRESENT_MODE_IMMEDIATE_KHR,
+                              VK_PRESENT_MODE_FIFO_KHR];
+  
+  foreach(desiredPresentMode; desiredPresentModes)
+  {
+    if (availablePresentModes.canFind(desiredPresentMode))
+      return desiredPresentMode;
+  }
+
+  scope(failure)
+  {
+    writeln("Could not find any desired present modes ", desiredPresentModes, " among available present modes ", availablePresentModes);
+  }
+  
+  assert(0);
+}
+
+VkExtent2D chooseSwapExtent(VkSurfaceCapabilitiesKHR capabilities)
+{
+  if (capabilities.currentExtent.width != uint.max)
+  {
+    return capabilities.currentExtent;
+  }
+  else
+  {
+    auto width = 800;
+    auto height = 600;
+    
+    VkExtent2D actualExtent =
+    {
+      width: width.clamp(capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+      height: height.clamp(capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
+    };
+    
+    return actualExtent;
+  }
+}
+
+VkSwapchainKHR createSwapchain(VkDevice logicalDevice, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, QueueFamilyIndices queueFamilyIndices)
+{
+  auto swapChainSupport = physicalDevice.querySwapChainSupport(surface);
+  
+  auto surfaceFormat = swapChainSupport.formats.chooseSwapSurfaceFormat();
+  auto presentMode = swapChainSupport.presentModes.chooseSwapPresentMode();
+  auto extent = swapChainSupport.capabilities.chooseSwapExtent;
+  
+  uint imageCount = swapChainSupport.capabilities.minImageCount + 1;
+  if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
+    imageCount = swapChainSupport.capabilities.maxImageCount;
+    
+  VkSwapchainCreateInfoKHR swapChainCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+    surface: surface,
+    minImageCount: imageCount,
+    imageFormat: surfaceFormat.format,
+    imageColorSpace: surfaceFormat.colorSpace,
+    imageExtent: extent,
+    imageArrayLayers: 1,
+    imageUsage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+
+    preTransform: swapChainSupport.capabilities.currentTransform,
+    compositeAlpha: VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+    presentMode: presentMode,
+    clipped: VK_TRUE,
+    oldSwapchain: VK_NULL_HANDLE,
+  };
+    
+  if (queueFamilyIndices.drawingFamilyIndex != queueFamilyIndices.presentationFamilyIndex)
+  {
+    swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+    swapChainCreateInfo.queueFamilyIndexCount = 2;
+    
+    auto indices = [queueFamilyIndices.drawingFamilyIndex, queueFamilyIndices.presentationFamilyIndex];
+
+    swapChainCreateInfo.pQueueFamilyIndices = cast(const(uint)*)indices.ptr;
+  }
+  else
+  {
+    swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swapChainCreateInfo.queueFamilyIndexCount = 0;
+    swapChainCreateInfo.pQueueFamilyIndices = null;
+  }
+  
+  VkSwapchainKHR swapChain;
+  logicalDevice.vkCreateSwapchainKHR(&swapChainCreateInfo, null, &swapChain).checkVk;
+  return swapChain;
+}
+
 void main()
 {
   string[] requestedExtensions = ["VK_KHR_surface"];
@@ -374,7 +488,10 @@ void main()
 
   auto drawingQueue = logicalDevice.createDrawingQueue(queueFamilyIndices);
   auto presentationQueue = logicalDevice.createPresentationQueue(queueFamilyIndices);
-    
+  
+  auto swapchain = logicalDevice.createSwapchain(physicalDevice, surface, queueFamilyIndices);
+  scope(exit) logicalDevice.vkDestroySwapchainKHR(swapchain, null);
+  
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
 
