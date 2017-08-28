@@ -758,6 +758,75 @@ VkFramebuffer[] createFramebuffers(VkDevice logicalDevice, Swapchain swapchain, 
   return framebuffers;
 }
 
+VkCommandPool createCommandPool(VkDevice logicalDevice, QueueFamilyIndices queueFamilyIndices)
+{  
+  VkCommandPoolCreateInfo commandPoolCreateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    queueFamilyIndex: queueFamilyIndices.drawingFamilyIndex,
+    flags: 0,
+  };
+ 
+  VkCommandPool commandPool; 
+  logicalDevice.vkCreateCommandPool(&commandPoolCreateInfo, null, &commandPool).checkVk;
+  
+  return commandPool;
+}
+
+VkCommandBuffer[] createCommandBuffers(VkDevice logicalDevice, VkFramebuffer[] framebuffers, VkCommandPool commandPool)
+{  
+  VkCommandBufferAllocateInfo commandBufferAllocateInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    commandPool: commandPool,
+    level: VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    commandBufferCount: cast(uint)framebuffers.length,
+  };
+ 
+  VkCommandBuffer[] commandBuffers;
+  commandBuffers.length = framebuffers.length;
+   
+  logicalDevice.vkAllocateCommandBuffers(&commandBufferAllocateInfo, commandBuffers.ptr).checkVk;
+  
+  return commandBuffers;
+}
+
+void recordCommandBuffers(VkCommandBuffer[] commandBuffers, VkRenderPass renderPass, VkFramebuffer[] framebuffers, Swapchain swapchain, VkPipeline graphicsPipeline)
+{
+  foreach (index, commandBuffer; commandBuffers)
+  {
+    VkCommandBufferBeginInfo commandBufferBeginInfo =
+    {
+      sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      flags: VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+      pInheritanceInfo: null,
+    };
+    
+    commandBuffer.vkBeginCommandBuffer(&commandBufferBeginInfo);
+    
+    auto clearValue = VkClearValue(VkClearColorValue([0.0f, 0.0f, 0.0f, 1.0f]));    
+    VkRenderPassBeginInfo renderPassBeginInfo =
+    {
+      sType: VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      renderPass: renderPass,
+      framebuffer: framebuffers[index],
+      renderArea: VkRect2D(VkOffset2D(0, 0), swapchain.extent),
+      clearValueCount: 1,
+      pClearValues: &clearValue,
+    };
+    
+    commandBuffer.vkCmdBeginRenderPass(&renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    
+    commandBuffer.vkCmdBindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+    commandBuffer.vkCmdDraw(3, 1, 0, 0);
+    
+    commandBuffer.vkCmdEndRenderPass();
+    
+    commandBuffer.vkEndCommandBuffer().checkVk;
+  }
+}
+
 void main()
 {
   string[] requestedExtensions = ["VK_KHR_surface"];
@@ -806,6 +875,12 @@ void main()
   
   auto framebuffers = logicalDevice.createFramebuffers(swapchain, renderPass, imageViews);
   scope(exit) framebuffers.each!(framebuffer => logicalDevice.vkDestroyFramebuffer(framebuffer, null));
+
+  auto commandPool = logicalDevice.createCommandPool(queueFamilyIndices);
+  scope(exit) logicalDevice.vkDestroyCommandPool(commandPool, null);
+
+  auto commandBuffers = createCommandBuffers(logicalDevice, framebuffers, commandPool);
+  commandBuffers.recordCommandBuffers(renderPass, framebuffers, swapchain, graphicsPipeline);
 
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
