@@ -732,6 +732,32 @@ VkRenderPass createRenderPass(VkDevice logicalDevice, Swapchain swapchain)
   return renderPass;
 }
 
+VkFramebuffer[] createFramebuffers(VkDevice logicalDevice, Swapchain swapchain, VkRenderPass renderPass, VkImageView[] imageViews)
+{
+  VkFramebuffer[] framebuffers;
+  framebuffers.length = imageViews.length;
+  
+  foreach (index, imageView; imageViews)
+  {
+    auto attachments = [imageView];
+    
+    VkFramebufferCreateInfo framebufferCreateInfo =
+    {
+      sType: VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      renderPass: renderPass,
+      attachmentCount: cast(uint)attachments.length,
+      pAttachments: attachments.ptr,
+      width: swapchain.extent.width,
+      height: swapchain.extent.height,
+      layers: 1,
+    };
+    
+    logicalDevice.vkCreateFramebuffer(&framebufferCreateInfo, null, &framebuffers[index]).checkVk;
+  }
+  
+  return framebuffers;
+}
+
 void main()
 {
   string[] requestedExtensions = ["VK_KHR_surface"];
@@ -778,6 +804,9 @@ void main()
   scope(exit) logicalDevice.vkDestroyPipeline(graphicsPipeline, null);
   scope(exit) logicalDevice.vkDestroyPipelineLayout(pipelineLayout, null);
   
+  auto framebuffers = logicalDevice.createFramebuffers(swapchain, renderPass, imageViews);
+  scope(exit) framebuffers.each!(framebuffer => logicalDevice.vkDestroyFramebuffer(framebuffer, null));
+
   //writeln("Available extensions:");
   //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
 
