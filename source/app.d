@@ -900,6 +900,7 @@ void drawFrame(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAva
   };
   
   presentationQueue.vkQueuePresentKHR(&presentInfo);
+  presentationQueue.vkQueueWaitIdle();
 }
 
 VkSemaphore createSemaphore(VkDevice logicalDevice)
