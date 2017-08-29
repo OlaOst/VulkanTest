@@ -827,6 +827,23 @@ void recordCommandBuffers(VkCommandBuffer[] commandBuffers, VkRenderPass renderP
   }
 }
 
+void mainLoop()
+{
+  bool running = true;
+  while (running)
+  {
+    SDL_Event event;
+    SDL_PollEvent(&event);
+    
+    if (event.type == SDL_QUIT)
+      running = false;
+    if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE)
+      running = false;
+      
+    
+  }
+}
+
 void main()
 {
   string[] requestedExtensions = ["VK_KHR_surface"];
@@ -882,12 +899,8 @@ void main()
   auto commandBuffers = createCommandBuffers(logicalDevice, framebuffers, commandPool);
   commandBuffers.recordCommandBuffers(renderPass, framebuffers, swapchain, graphicsPipeline);
 
-  //writeln("Available extensions:");
-  //instance.getAvailableExtensions.map!(ext => ext.extensionName).each!writeln;
-
-  //writeln("\nAvailable layers:");
-  //instance.getAvailableLayers.map!(layer => layer.layerName).each!writeln;
-
+  mainLoop();
+  
   debug
   {    
     enforce(instance.checkValidationLayerSupport(requestedValidationLayers),
