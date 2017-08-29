@@ -718,13 +718,30 @@ VkRenderPass createRenderPass(VkDevice logicalDevice, Swapchain swapchain)
     pColorAttachments: &colorAttachmentReference,
   };
   
+  VkSubpassDependency subpassDependency =
+  {
+    srcSubpass: VK_SUBPASS_EXTERNAL,
+    dstSubpass: 0,
+    
+    srcStageMask: VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    srcAccessMask: 0,
+    
+    dstStageMask: VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    dstAccessMask: VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+  };
+  
   VkRenderPassCreateInfo renderPassCreateInfo =
   {
     sType: VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+
     attachmentCount: 1,
     pAttachments: &colorAttachment,
+
     subpassCount: 1,
     pSubpasses: &subpassDescription,
+    
+    dependencyCount: 1,
+    pDependencies: &subpassDependency,
   };
   
   VkRenderPass renderPass;
@@ -827,7 +844,7 @@ void recordCommandBuffers(VkCommandBuffer[] commandBuffers, VkRenderPass renderP
   }
 }
 
-void mainLoop(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvailableSemaphore, VkSemaphore renderFinishedSemaphore, VkCommandBuffer[] commandBuffers, VkQueue drawingQueue)
+void mainLoop(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvailableSemaphore, VkSemaphore renderFinishedSemaphore, VkCommandBuffer[] commandBuffers, VkQueue drawingQueue, VkQueue presentationQueue)
 {
   bool running = true;
   while (running)
@@ -840,11 +857,11 @@ void mainLoop(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvai
     if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE)
       running = false;
       
-    logicalDevice.drawFrame(swapchain, imageAvailableSemaphore, renderFinishedSemaphore, commandBuffers, drawingQueue);
+    logicalDevice.drawFrame(swapchain, imageAvailableSemaphore, renderFinishedSemaphore, commandBuffers, drawingQueue, presentationQueue);
   }
 }
 
-void drawFrame(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvailableSemaphore, VkSemaphore renderFinishedSemaphore, VkCommandBuffer[] commandBuffers, VkQueue drawingQueue)
+void drawFrame(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvailableSemaphore, VkSemaphore renderFinishedSemaphore, VkCommandBuffer[] commandBuffers, VkQueue drawingQueue, VkQueue presentationQueue)
 {
   uint imageIndex;
   logicalDevice.vkAcquireNextImageKHR(swapchain, ulong.max, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
@@ -865,6 +882,22 @@ void drawFrame(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAva
   };
   
   drawingQueue.vkQueueSubmit(1, &submitInfo, VK_NULL_HANDLE).checkVk;
+  
+  VkPresentInfoKHR presentInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    
+    waitSemaphoreCount: 1,
+    pWaitSemaphores: [renderFinishedSemaphore],
+    
+    swapchainCount: 1,
+    pSwapchains: [swapchain],
+    pImageIndices: &imageIndex,
+    
+    pResults: null,
+  };
+  
+  presentationQueue.vkQueuePresentKHR(&presentInfo);
 }
 
 VkSemaphore createSemaphore(VkDevice logicalDevice)
@@ -940,7 +973,7 @@ void main()
   auto renderFinishedSemaphore = logicalDevice.createSemaphore();
   scope(exit) logicalDevice.vkDestroySemaphore(renderFinishedSemaphore, null);
 
-  logicalDevice.mainLoop(swapchain, imageAvailableSemaphore, renderFinishedSemaphore, commandBuffers, drawingQueue);
+  logicalDevice.mainLoop(swapchain, imageAvailableSemaphore, renderFinishedSemaphore, commandBuffers, drawingQueue, presentationQueue);
   
   debug
   {    
