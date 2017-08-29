@@ -827,7 +827,7 @@ void recordCommandBuffers(VkCommandBuffer[] commandBuffers, VkRenderPass renderP
   }
 }
 
-void mainLoop()
+void mainLoop(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvailableSemaphore, VkSemaphore renderFinishedSemaphore, VkCommandBuffer[] commandBuffers, VkQueue drawingQueue)
 {
   bool running = true;
   while (running)
@@ -840,8 +840,43 @@ void mainLoop()
     if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE)
       running = false;
       
-    
+    logicalDevice.drawFrame(swapchain, imageAvailableSemaphore, renderFinishedSemaphore, commandBuffers, drawingQueue);
   }
+}
+
+void drawFrame(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvailableSemaphore, VkSemaphore renderFinishedSemaphore, VkCommandBuffer[] commandBuffers, VkQueue drawingQueue)
+{
+  uint imageIndex;
+  logicalDevice.vkAcquireNextImageKHR(swapchain, ulong.max, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+  
+  VkSubmitInfo submitInfo =
+  {
+    sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
+
+    waitSemaphoreCount: 1,
+    pWaitSemaphores: [imageAvailableSemaphore].ptr,
+    pWaitDstStageMask: [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT],
+    
+    commandBufferCount: 1,
+    pCommandBuffers: &commandBuffers[imageIndex],
+    
+    signalSemaphoreCount: 1,
+    pSignalSemaphores: [renderFinishedSemaphore],
+  };
+  
+  drawingQueue.vkQueueSubmit(1, &submitInfo, VK_NULL_HANDLE).checkVk;
+}
+
+VkSemaphore createSemaphore(VkDevice logicalDevice)
+{
+  VkSemaphoreCreateInfo semaphoreCreateInfo = 
+  {
+    sType: VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+  };
+  
+  VkSemaphore semaphore;
+  logicalDevice.vkCreateSemaphore(&semaphoreCreateInfo, null, &semaphore).checkVk;
+  return semaphore;
 }
 
 void main()
@@ -899,7 +934,13 @@ void main()
   auto commandBuffers = createCommandBuffers(logicalDevice, framebuffers, commandPool);
   commandBuffers.recordCommandBuffers(renderPass, framebuffers, swapchain, graphicsPipeline);
 
-  mainLoop();
+  auto imageAvailableSemaphore = logicalDevice.createSemaphore();
+  scope(exit) logicalDevice.vkDestroySemaphore(imageAvailableSemaphore, null);
+
+  auto renderFinishedSemaphore = logicalDevice.createSemaphore();
+  scope(exit) logicalDevice.vkDestroySemaphore(renderFinishedSemaphore, null);
+
+  logicalDevice.mainLoop(swapchain, imageAvailableSemaphore, renderFinishedSemaphore, commandBuffers, drawingQueue);
   
   debug
   {    
