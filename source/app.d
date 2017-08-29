@@ -9,46 +9,9 @@ import std.string : fromStringz, toStringz;
 import derelict.sdl2.sdl;
 import erupted;
 
+import vulkan.check;
+import vulkan.instance;
 
-private void checkVk(VkResult result)
-{
-  enforce(result == VK_SUCCESS, result.to!string);
-}
-
-VkInstance createVulkanInstance(string[] requestedExtensions, string[] requestedValidationLayers)
-{
-  DerelictErupted.load();
-
-  VkApplicationInfo appInfo =
-  {
-    sType: VK_STRUCTURE_TYPE_APPLICATION_INFO,
-    pApplicationName: "Vulkan Test",
-    applicationVersion: VK_MAKE_VERSION(1, 0, 0),
-    pEngineName: "No engine",
-    engineVersion: VK_MAKE_VERSION(1, 0, 0),
-    apiVersion: VK_API_VERSION_1_0,
-  };
-  
-  VkInstanceCreateInfo createInfo =
-  {
-    sType: VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-    pApplicationInfo: &appInfo,
-    
-    enabledExtensionCount: cast(uint)requestedExtensions.length,
-    ppEnabledExtensionNames: requestedExtensions.map!(extension => extension.toStringz).array.ptr,
-
-    enabledLayerCount: cast(uint)requestedValidationLayers.length,
-    ppEnabledLayerNames: requestedValidationLayers.map!(layer => layer.toStringz).array.ptr,
-  };
-  
-  VkInstance instance;
-  vkCreateInstance(&createInfo, null, &instance).checkVk;
-
-  instance.loadInstanceLevelFunctions();
-  instance.loadDeviceLevelFunctions();
-
-  return instance;
-}
 
 VkExtensionProperties[] getAvailableExtensions(VkInstance instance)
 {  
@@ -924,7 +887,7 @@ void main()
   string[] requestedValidationLayers;
   debug requestedValidationLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
     
-  auto instance = createVulkanInstance(requestedExtensions, requestedValidationLayers);
+  auto instance = createVulkanInstance("VulkanTest", requestedExtensions, requestedValidationLayers);
   scope(exit) vkDestroyInstance(instance, null);
 
   auto debugCallback = instance.createDebugCallback();
