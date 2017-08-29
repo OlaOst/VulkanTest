@@ -859,6 +859,8 @@ void mainLoop(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvai
       
     logicalDevice.drawFrame(swapchain, imageAvailableSemaphore, renderFinishedSemaphore, commandBuffers, drawingQueue, presentationQueue);
   }
+  
+  logicalDevice.vkDeviceWaitIdle();
 }
 
 void drawFrame(VkDevice logicalDevice, Swapchain swapchain, VkSemaphore imageAvailableSemaphore, VkSemaphore renderFinishedSemaphore, VkCommandBuffer[] commandBuffers, VkQueue drawingQueue, VkQueue presentationQueue)
