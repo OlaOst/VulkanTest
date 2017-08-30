@@ -13,37 +13,6 @@ import vulkan.check;
 import vulkan.instance;
 
 
-VkExtensionProperties[] getAvailableExtensions(VkInstance instance)
-{  
-  uint extensionCount;
-  vkEnumerateInstanceExtensionProperties(null, &extensionCount, null).checkVk;
-    
-  VkExtensionProperties[] extensions;
-  extensions.length = extensionCount;
-  vkEnumerateInstanceExtensionProperties(null, &extensionCount, extensions.ptr).checkVk;
-  
-  return extensions;
-}
-
-VkLayerProperties[] getAvailableLayers(VkInstance instance)
-{
-  uint layerCount;
-  vkEnumerateInstanceLayerProperties(&layerCount, null).checkVk;
-  
-  VkLayerProperties[] availableLayers;
-  availableLayers.length = layerCount;
-  
-  vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.ptr).checkVk;
-  
-  return availableLayers;
-}
-
-bool checkValidationLayerSupport(VkInstance instance, string[] requestedValidationLayers)
-{
-  auto availableValidationLayers = instance.getAvailableLayers();
-  return requestedValidationLayers.all!(requestedValidationLayerName => availableValidationLayers.any!(availableValidationLayer => requestedValidationLayerName == availableValidationLayer.layerName.ptr.fromStringz));
-}
-
 SDL_Window* createSDLWindow()
 {
   DerelictSDL2.load(SharedLibVersion(2, 0, 4));
@@ -884,14 +853,16 @@ void main()
   version(linux) requestedExtensions ~= ["VK_KHR_xcb_surface"];
   debug requestedExtensions ~= ["VK_EXT_debug_report"];
 
-  string[] requestedValidationLayers;
-  debug requestedValidationLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
-    
-  auto instance = createVulkanInstance("VulkanTest", requestedExtensions, requestedValidationLayers);
-  scope(exit) vkDestroyInstance(instance, null);
+  string[] requestedLayers;
+  debug requestedLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
+      
+  auto instance = Instance("VulkanTest", requestedExtensions, requestedLayers);
 
-  auto debugCallback = instance.createDebugCallback();
-  scope(exit) instance.vkDestroyDebugReportCallbackEXT(debugCallback, null);
+  instance.getAvailableExtensionNames().each!writeln;
+  instance.getAvailableLayerNames().each!writeln;
+
+  debug auto debugCallback = instance.createDebugCallback();
+  debug scope(exit) instance.vkDestroyDebugReportCallbackEXT(debugCallback, null);
 
   auto window = createSDLWindow();
 
@@ -904,7 +875,7 @@ void main()
 
   auto queueFamilyIndices = physicalDevice.getQueueFamilyIndices(surface);
     
-  auto logicalDevice = physicalDevice.createLogicalDevice(queueFamilyIndices, requestedDeviceExtensions, requestedValidationLayers);
+  auto logicalDevice = physicalDevice.createLogicalDevice(queueFamilyIndices, requestedDeviceExtensions, requestedLayers);
   scope(exit) logicalDevice.vkDestroyDevice(null);
 
   auto drawingQueue = logicalDevice.createDrawingQueue(queueFamilyIndices);
@@ -941,9 +912,9 @@ void main()
 
   logicalDevice.mainLoop(swapchain, imageAvailableSemaphore, renderFinishedSemaphore, commandBuffers, drawingQueue, presentationQueue);
   
-  debug
+  /*debug
   {    
-    enforce(instance.checkValidationLayerSupport(requestedValidationLayers),
-            "Could not find requested validation layers " ~ requestedValidationLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
-  }  
+    enforce(instance.checkValidationLayerSupport(requestedLayers),
+            "Could not find requested validation layers " ~ requestedLayers.to!string ~ " in available layers " ~ instance.getAvailableLayers().map!(layer => layer.layerName.ptr.fromStringz).to!string);
+  }*/
 }
