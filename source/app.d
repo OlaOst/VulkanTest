@@ -808,8 +808,6 @@ void main()
   auto window = createSDLWindow();
 
   auto surface = Surface(instance, window);
-  //auto surface = instance.createSurface(window);
-  //scope(exit) instance.vkDestroySurfaceKHR(surface, null);
 
   auto requestedDeviceExtensions = ["VK_KHR_swapchain"];
 
