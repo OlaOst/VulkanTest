@@ -11,6 +11,7 @@ import erupted;
 
 import vulkan.check;
 import vulkan.instance;
+import vulkan.surface;
 
 
 SDL_Window* createSDLWindow()
@@ -29,35 +30,6 @@ SDL_Window* createSDLWindow()
   enforce(window !is null, "Error creating window: " ~ SDL_GetError().to!string);
     
   return window;
-}
-
-VkDebugReportCallbackEXT createDebugCallback(VkInstance instance)
-{
-  PFN_vkDebugReportCallbackEXT debugCallback = (uint flags, 
-                                                VkDebugReportObjectTypeEXT objectType,
-                                                ulong object,
-                                                ulong location,
-                                                int messageCode,
-                                                const(char)* pLayerPrefix,
-                                                const(char)* pMessage,
-                                                void* pUserData)
-  {
-    import core.stdc.stdio;
-    printf("Validation layer: %s\n", pMessage);
-    return VK_FALSE;
-  };
-  
-  VkDebugReportCallbackCreateInfoEXT createInfo =
-  {
-    sType: VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
-    flags: (VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT),
-    pfnCallback: debugCallback,
-  };
-  
-  VkDebugReportCallbackEXT callback;
-  instance.vkCreateDebugReportCallbackEXT(&createInfo, null, &callback).checkVk;
-  
-  return callback;
 }
 
 VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, string[] requestedDeviceExtensions)
@@ -212,34 +184,6 @@ VkQueue createPresentationQueue(VkDevice logicalDevice, QueueFamilyIndices queue
   VkQueue presentationQueue;
   logicalDevice.vkGetDeviceQueue(queueFamilyIndices.presentationFamilyIndex, 0, &presentationQueue);
   return presentationQueue;
-}
-
-VkSurfaceKHR createSurface(VkInstance instance, SDL_Window* window)
-{
-  SDL_SysWMinfo wminfo;
-  //SDL_VERSION(&wminfo.version_); // compiled version
-  SDL_GetVersion(&wminfo.version_); // linked version
-  enforce(SDL_GetWindowWMInfo(window, &wminfo) != SDL_FALSE, "Failed to get window info from SDL: " ~ SDL_GetError().to!string);
-
-  VkSurfaceKHR surface;
-
-  version(linux)
-  {
-    VkXcbSurfaceCreateInfoKHR surfaceCreateInfo =
-    {
-      sType: VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
-      connection: xcb_connect(null, null),
-      window: wminfo.info.x11.window,
-    };
-    
-    instance.vkCreateXcbSurfaceKHR(&surfaceCreateInfo, null, &surface).checkVk;
-  }
-  else
-  {
-    assert(0, "This platform is not supported yet");
-  }
-  
-  return surface;
 }
 
 struct SwapchainSupportDetails
@@ -855,19 +799,17 @@ void main()
 
   string[] requestedLayers;
   debug requestedLayers ~= ["VK_LAYER_LUNARG_standard_validation"];
-      
+
   auto instance = Instance("VulkanTest", requestedExtensions, requestedLayers);
 
   instance.getAvailableExtensionNames().each!writeln;
   instance.getAvailableLayerNames().each!writeln;
 
-  debug auto debugCallback = instance.createDebugCallback();
-  debug scope(exit) instance.vkDestroyDebugReportCallbackEXT(debugCallback, null);
-
   auto window = createSDLWindow();
 
-  auto surface = instance.createSurface(window);
-  scope(exit) instance.vkDestroySurfaceKHR(surface, null);
+  auto surface = Surface(instance, window);
+  //auto surface = instance.createSurface(window);
+  //scope(exit) instance.vkDestroySurfaceKHR(surface, null);
 
   auto requestedDeviceExtensions = ["VK_KHR_swapchain"];
 
